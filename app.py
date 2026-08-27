@@ -9,15 +9,99 @@ import unicodedata
 from datetime import datetime
 from pathlib import Path
 
+import altair as alt
 import pandas as pd
 import requests
 import streamlit as st
 
 st.set_page_config(
     page_title='COFEPRIS — Registros de medicamentos | Bayer',
-    page_icon='💊',
     layout='wide',
 )
+
+# ─────────────────── design system (tokens HSL de Cora) ─────────────────
+# Tipografía: DM Sans (UI) + JetBrains Mono (datos). Sidebar negro puro.
+# Cards rounded-xl con borde sutil. Labels uppercase con tracking.
+DS = {
+    'primary': 'hsl(220 90% 50%)',
+    'foreground': 'hsl(220 15% 10%)',
+    'muted': 'hsl(220 15% 96%)',
+    'muted_fg': 'hsl(220 10% 40%)',
+    'border': 'hsl(220 15% 88%)',
+}
+# Series del chart (hex requerido por Vega; par validado para CVD/contraste)
+COLOR_FILTRO = '#0D59F2'   # primary
+COLOR_TOTAL = '#0D9488'    # teal-600
+
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+html, body, .stApp, p, span, div, input, textarea, button, label, h1, h2, h3, h4 {
+    font-family: 'DM Sans', sans-serif;
+}
+
+/* ── encabezados ── */
+h1 { font-size: 1.4rem !important; font-weight: 700 !important;
+     letter-spacing: -0.01em; color: hsl(220 15% 10%); }
+h3 { font-size: 0.72rem !important; text-transform: uppercase;
+     letter-spacing: 0.08em; font-weight: 600 !important;
+     color: hsl(220 10% 40%) !important;
+     border-bottom: 1px solid hsl(220 15% 88% / .5);
+     padding-bottom: 0.5rem !important; }
+
+/* ── sidebar negro puro ── */
+[data-testid="stSidebar"] { background: #000 !important; }
+[data-testid="stSidebar"] * { color: #fff; }
+[data-testid="stSidebar"] h2 {
+    font-size: 0.72rem !important; text-transform: uppercase;
+    letter-spacing: 0.08em; font-weight: 600 !important;
+    color: rgba(255,255,255,.65) !important; }
+[data-testid="stSidebar"] h3 {
+    color: rgba(255,255,255,.65) !important;
+    border-bottom: 1px solid rgba(255,255,255,.15); }
+[data-testid="stSidebar"] label p { font-size: 12px; color: rgba(255,255,255,.85); }
+[data-testid="stSidebar"] .stButton button {
+    background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.20);
+    border-radius: 0.75rem; color: #fff; font-size: 13px;
+    transition: all .2s; }
+[data-testid="stSidebar"] .stButton button:hover { background: rgba(255,255,255,.20); }
+[data-testid="stSidebar"] input, [data-testid="stSidebar"] textarea {
+    color: hsl(220 15% 10%) !important; }
+[data-testid="stSidebar"] [data-baseweb="select"] span { color: hsl(220 15% 10%); }
+
+/* ── métricas como cards ── */
+[data-testid="stMetric"] {
+    background: #fff; border: 1px solid hsl(220 15% 88% / .6);
+    border-radius: 0.75rem; padding: 1rem;
+    box-shadow: 0 1px 2px rgb(0 0 0 / .05); }
+[data-testid="stMetricLabel"] p {
+    text-transform: uppercase; font-size: 10px !important;
+    letter-spacing: 0.08em; font-weight: 600;
+    color: hsl(220 10% 40%) !important; }
+[data-testid="stMetricValue"] {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 1.55rem !important; font-weight: 600;
+    color: hsl(220 15% 10%); }
+
+/* ── botones y descargas ── */
+.stButton button, .stDownloadButton button {
+    border-radius: 0.75rem !important; font-size: 13px;
+    transition: all .2s; }
+.stDownloadButton button {
+    border: 1px solid hsl(220 15% 88%); background: #fff;
+    color: hsl(220 15% 10%); }
+.stDownloadButton button:hover {
+    background: hsl(220 15% 96% / .6); border-color: hsl(220 90% 50%);
+    color: hsl(220 90% 50%); }
+
+/* ── expanders y captions ── */
+[data-testid="stExpander"] {
+    border: 1px solid hsl(220 15% 88% / .6) !important;
+    border-radius: 0.75rem !important; background: #fff; }
+[data-testid="stCaptionContainer"] p { font-size: 12px; color: hsl(220 10% 40%); }
+</style>
+""", unsafe_allow_html=True)
 
 # ── logo de Bayer ──
 # Usa el archivo local del repo si existe (assets/logo_bayer.png o .svg);
@@ -241,13 +325,15 @@ def serie_mensual(d, etiqueta):
 
 
 # ═══════════════════════════ carga de datos ════════════════════════════
-c_logo, c_tit = st.columns([1, 8], vertical_alignment='center')
+c_logo, c_tit = st.columns([1, 10], vertical_alignment='center')
 with c_logo:
-    st.image(LOGO or LOGO_URL, width=88)
+    st.image(LOGO or LOGO_URL, width=72)
 with c_tit:
     st.title('COFEPRIS — Registros sanitarios de medicamentos')
     st.caption('Serie mensual de registros otorgados, con filtros configurables. '
                'Fuente: XLSX oficial del visor de COFEPRIS (actualizado a diario).')
+st.markdown('<div style="border-bottom:1px solid hsl(220 15% 88% / .5);'
+            'margin:0 0 1rem 0"></div>', unsafe_allow_html=True)
 
 with st.spinner('Descargando la base oficial de COFEPRIS…'):
     otorg, error = descargar_base()
@@ -298,10 +384,10 @@ def _limpiar_filtros():
 with st.sidebar:
     st.header('Filtros')
     c1, c2 = st.columns(2)
-    c1.button('🎗️ Preset oncología', on_click=_aplicar_preset_onco,
+    c1.button('Preset oncología', on_click=_aplicar_preset_onco,
               width='stretch',
               help='L01 + L02 + términos de cáncer + rescate sin ATC')
-    c2.button('🧹 Limpiar', on_click=_limpiar_filtros, width='stretch')
+    c2.button('Limpiar', on_click=_limpiar_filtros, width='stretch')
 
     st.subheader('Terapéutico')
     atc_grupos = st.multiselect(
@@ -388,17 +474,74 @@ if desde or hasta:  # acotar la serie total al mismo rango para comparar
 
 st.subheader('Serie mensual de otorgados')
 if len(otorg_mes):
-    st.line_chart(otorg_mes)
+    NOMBRES = {'otorgados_filtro': 'Filtro', 'otorgados_total': 'Toda la base'}
+    largo = otorg_mes.reset_index().melt('mes', var_name='serie',
+                                         value_name='registros')
+    largo['serie'] = largo['serie'].map(NOMBRES)
+    largo['fecha'] = pd.to_datetime(largo['mes'])
+
+    una_serie = largo['serie'].nunique() == 1
+    escala = alt.Scale(domain=['Filtro', 'Toda la base'],
+                       range=[COLOR_FILTRO, COLOR_TOTAL])
+    color = (alt.value(COLOR_FILTRO) if una_serie
+             else alt.Color('serie:N', scale=escala,
+                            legend=alt.Legend(title=None, orient='top')))
+
+    cerca = alt.selection_point(nearest=True, on='pointermove',
+                                fields=['fecha'], empty=False)
+    base = alt.Chart(largo).encode(
+        x=alt.X('fecha:T', title=None,
+                axis=alt.Axis(format='%b %Y', grid=False)),
+        y=alt.Y('registros:Q', title='registros / mes',
+                axis=alt.Axis(gridColor='#EEF0F3', tickCount=5)),
+    )
+    lineas = base.mark_line(strokeWidth=2).encode(color=color)
+    puntos = base.mark_point(size=70, filled=True).encode(
+        color=color,
+        opacity=alt.condition(cerca, alt.value(1), alt.value(0)),
+        tooltip=[alt.Tooltip('mes:N', title='Mes'),
+                 alt.Tooltip('serie:N', title='Serie'),
+                 alt.Tooltip('registros:Q', title='Registros')],
+    ).add_params(cerca)
+    regla = base.mark_rule(color='#DCDFE5').encode(
+        opacity=alt.condition(cerca, alt.value(1), alt.value(0)))
+
+    chart = (
+        (lineas + regla + puntos)
+        .properties(height=320)
+        .configure(font='DM Sans')
+        .configure_axis(domainOpacity=0, tickOpacity=0,
+                        labelColor='#5C6370', titleColor='#5C6370',
+                        labelFont='JetBrains Mono', labelFontSize=10,
+                        titleFontSize=10, titleFontWeight=600)
+        .configure_legend(labelColor='#16181D', labelFontSize=12)
+        .configure_view(strokeOpacity=0)
+    )
+    st.altair_chart(chart, width='stretch')
     with st.expander('Ver tabla de la serie mensual'):
         st.dataframe(otorg_mes, width='stretch')
 else:
     st.info('No hay registros con fecha de expedición en el rango elegido.')
 
-# ── por qué entró cada registro ──
+# ── por qué entró cada registro (badges) ──
 if 'deteccion' in filtrado and filtrado['deteccion'].notna().any():
-    with st.expander('Detección — por qué entró cada registro al filtro'):
-        st.dataframe(filtrado['deteccion'].value_counts().rename('registros'),
-                     width='stretch')
+    COLOR_PILL = {'ATC': '#0D59F2', 'sistema': '#0D9488',
+                  'texto': '#7C3AED', 'sin filtro': '#5C6370'}
+
+    def _pill(texto, n):
+        c = next((v for k, v in COLOR_PILL.items() if texto.startswith(k)),
+                 '#5C6370')
+        return (f'<span style="display:inline-flex;align-items:center;gap:4px;'
+                f'padding:2px 8px;border-radius:6px;font-size:11px;'
+                f'font-weight:500;border:1px solid {c}40;color:{c};'
+                f'background:{c}12;font-family:\'JetBrains Mono\',monospace">'
+                f'{texto} · {n:,}</span>')
+
+    conteo = filtrado['deteccion'].value_counts()
+    st.markdown(
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 1rem 0">'
+        + ''.join(_pill(k, v) for k, v in conteo.items()) + '</div>',
+        unsafe_allow_html=True)
 
 # ── tabla de registros ──
 st.subheader(f'Registros filtrados ({len(filtrado):,})')
@@ -435,12 +578,12 @@ with pd.ExcelWriter(buf, engine='openpyxl') as xw:
 
 d1, d2 = st.columns(2)
 d1.download_button(
-    f'📥 Excel — cofepris_{stamp}.xlsx', buf.getvalue(),
+    f'Excel — cofepris_{stamp}.xlsx', buf.getvalue(),
     file_name=f'cofepris_{stamp}.xlsx',
     mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     width='stretch')
 d2.download_button(
-    f'📥 CSV completo (sin truncar) — cofepris_otorgados_{stamp}.csv',
+    f'CSV completo (sin truncar) — cofepris_otorgados_{stamp}.csv',
     filtrado.to_csv(index=False, encoding='utf-8-sig'),
     file_name=f'cofepris_otorgados_{stamp}.csv',
     mime='text/csv', width='stretch')
