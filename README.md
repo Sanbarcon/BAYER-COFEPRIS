@@ -30,12 +30,12 @@ Se abre en http://localhost:8501.
 
 Cada `git push` al repositorio redespliega la app automáticamente.
 
-## Logo y tema de Bayer
+## Logo y tema de Pfizer
 
-- La app busca el logo en `assets/logo_bayer.png` (o `.svg`) dentro del repo;
+- La app busca el logo en `assets/logo_pfizer.png` (o `.svg`) dentro del repo;
   si no lo encuentra, usa el logo oficial publicado en Wikimedia Commons.
-  Lo recomendable es subir al repo el archivo oficial de brand assets de Bayer.
-- Los colores corporativos (verde #89D329, azul #10384F) están en
+  Lo recomendable es subir al repo el archivo oficial de brand assets de Pfizer.
+- Los colores corporativos (azul #0000C9, azul claro #3D96F7) pueden configurarse en
   `.streamlit/config.toml`.
 
 ## Notas
