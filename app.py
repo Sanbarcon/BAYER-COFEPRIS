@@ -15,7 +15,7 @@ import requests
 import streamlit as st
 
 st.set_page_config(
-    page_title='COFEPRIS — Registros de medicamentos | Bayer',
+    page_title='COFEPRIS — Registros de medicamentos | Pfizer',
     layout='wide',
 )
 
@@ -103,14 +103,14 @@ h3 { font-size: 0.72rem !important; text-transform: uppercase;
 </style>
 """, unsafe_allow_html=True)
 
-# ── logo de Bayer ──
-# Usa el archivo local del repo si existe (assets/logo_bayer.png o .svg);
+# ── logo de Pfizer ──
+# Usa el archivo local del repo si existe (assets/logo_pfizer.png o .svg);
 # si no, cae al logo oficial publicado en Wikimedia Commons.
-LOGO = next((str(p) for p in (Path('assets/logo_bayer.png'),
-                              Path('assets/logo_bayer.svg'),
-                              Path('logo_bayer.png'),
-                              Path('logo_bayer.svg')) if p.exists()), None)
-LOGO_URL = 'https://upload.wikimedia.org/wikipedia/commons/f/f7/Logo_Bayer.svg'
+LOGO = next((str(p) for p in (Path('assets/logo_pfizer.png'),
+                              Path('assets/logo_pfizer.svg'),
+                              Path('logo_pfizer.png'),
+                              Path('logo_pfizer.svg')) if p.exists()), None)
+LOGO_URL = 'https://upload.wikimedia.org/wikipedia/commons/5/57/Pfizer_%282021%29.svg'
 try:
     st.logo(LOGO or LOGO_URL, size='large')
 except Exception:
